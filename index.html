@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Ghép Giọng — Studio TTS tiếng Việt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1ECE1; --card:#FBF8F0; --head:#F4EEE0; --field:#FFFEFA;
+    --ink:#1B1712; --ink-60:rgba(27,23,18,.6); --ink-35:rgba(27,23,18,.35); --ink-15:rgba(27,23,18,.15);
+    --acc:#C13A1B; --acc-dark:#8E2A12; --cream:#F6F1E6;
+    --mono:'IBM Plex Mono',ui-monospace,monospace; --sans:'Be Vietnam Pro',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+  ::placeholder{color:rgba(27,23,18,.38)}
+  button{font-family:inherit;cursor:pointer}
+  :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+  /* ===== Bố cục: cột chính + rail hạn mức sticky bên phải ===== */
+  .pagelayout{display:flex;justify-content:center;align-items:flex-start;gap:26px;padding:0 24px}
+  .wrap{width:100%;max-width:920px;padding:52px 0 90px;order:0}
+  .quotarail{order:2;flex:none;width:272px;position:sticky;top:24px;
+    max-height:calc(100vh - 44px);overflow:auto;scrollbar-width:thin}
+  @media (max-width:1239px){
+    .pagelayout{flex-direction:column;align-items:stretch}
+    .quotarail{order:-1;position:static;width:100%;max-height:none;overflow:visible}
+    .wrap{padding-top:30px}
+  }
+
+  /* ===== Rail hạn mức ===== */
+  .quotapanel{background:var(--card);border:1.5px solid var(--ink);border-radius:10px;box-shadow:6px 7px 0 rgba(27,23,18,.12)}
+  .qp-head{width:100%;display:flex;align-items:center;gap:9px;padding:12px 14px;border:none;
+    border-bottom:1.5px solid var(--ink);background:var(--head);border-radius:8.5px 8.5px 0 0;
+    font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.14em;color:var(--ink)}
+  .qp-head .gicon{width:16px;height:16px;color:var(--acc);flex:none}
+  .qp-head b{color:var(--acc);font-weight:600}
+  .qp-chev{width:14px;height:14px;margin-left:auto;transition:transform .2s;color:var(--ink-60);flex:none}
+  .quotapanel.closed .qp-chev{transform:rotate(-90deg)}
+  .quotapanel.closed .qp-body{display:none}
+  .quotapanel.closed .qp-head{border-bottom:none;border-radius:8.5px}
+  .qp-body{padding:11px 14px 14px}
+  .qrow{padding:9px 0 3px;border-bottom:1px dashed var(--ink-15)}
+  .qrow:last-child{border-bottom:none}
+  .qrow-top{display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);
+    font-size:10px;letter-spacing:.06em;font-variant-numeric:tabular-nums}
+  .qfam{letter-spacing:.14em;font-weight:600}
+  .qbar{height:7px;border:1px solid var(--ink);border-radius:4px;background:var(--field);margin:6px 0 5px;overflow:hidden}
+  .qbar i{display:block;height:100%;background:var(--ink);transition:width .35s}
+  .qrow.over .qbar i{background:var(--acc)}
+  .qrow-meta{display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:9.5px;color:var(--ink-60)}
+  .qright{text-align:right}
+  .qrow.over .qright{color:var(--acc-dark);font-weight:600}
+  .qproj{margin-top:3px;font-family:var(--mono);font-size:9.5px;color:var(--ink-60)}
+  .qproj.warn{color:var(--acc-dark);font-weight:600}
+  .qp-total{margin-top:11px;padding-top:9px;border-top:1.5px solid var(--ink);text-align:center;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;font-weight:600;font-variant-numeric:tabular-nums}
+  .qp-reset{margin-top:10px;width:100%;padding:8px;border:1.5px dashed var(--ink-35);border-radius:7px;
+    background:transparent;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-60)}
+  .qp-reset:hover{border-style:solid;border-color:var(--acc);color:var(--acc-dark)}
+  .qp-note{margin-top:10px;font-family:var(--mono);font-size:8.8px;line-height:1.7;letter-spacing:.02em;color:var(--ink-60)}
+
+  /* ===== Hero ===== */
+  .hero{display:flex;justify-content:space-between;align-items:flex-end;gap:36px;margin-bottom:6px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--ink-60);display:flex;align-items:center;gap:10px}
+  .kicker::before{content:'';width:26px;height:2px;background:var(--acc);flex:none}
+  h1{font-size:clamp(38px,6.4vw,64px);font-weight:800;letter-spacing:-.022em;line-height:1.04;margin:14px 0 16px;text-wrap:balance}
+  h1 em{font-style:normal;color:var(--acc)}
+  .lede{color:var(--ink-60);font-size:16px;max-width:46ch}
+
+  .cassette{width:330px;max-width:44vw;flex:none}
+  .cassette text{font-family:var(--mono)}
+  .cs-label{font-size:15px;font-weight:600;fill:var(--ink);letter-spacing:.12em}
+  .cs-sub{font-size:9.5px;fill:var(--ink-60);letter-spacing:.2em}
+  .cs-acc{font-size:12px;font-weight:600;fill:var(--acc)}
+  .reel{transform-box:fill-box;transform-origin:center;animation:reelSpin 2.4s linear infinite;animation-play-state:paused}
+  body.spinning .reel{animation-play-state:running}
+  @keyframes reelSpin{to{transform:rotate(360deg)}}
+
+  /* ===== Panel ===== */
+  .panel{position:relative;background:var(--card);border:1.5px solid var(--ink);border-radius:10px;box-shadow:6px 7px 0 rgba(27,23,18,.12);margin-top:30px}
+  .panel-head{display:flex;align-items:baseline;gap:14px;padding:16px 22px 13px;border-bottom:1.5px solid var(--ink);background:var(--head);border-radius:8.5px 8.5px 0 0}
+  .step-no{font-family:var(--mono);font-weight:600;font-size:12.5px;color:var(--cream);background:var(--ink);padding:3px 9px;border-radius:4px}
+  .step-title{font-weight:700;font-size:17.5px}
+  .step-note{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--ink-60)}
+  .panel-body{padding:20px 22px 24px}
+
+  .lockcover{position:absolute;inset:0;z-index:4;border-radius:inherit;background:rgba(241,236,225,.82);
+    display:none;align-items:center;justify-content:center;gap:10px;
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;color:var(--ink-60)}
+  .lockcover svg{width:18px;height:18px;color:var(--acc)}
+  .panel.locked .lockcover{display:flex}
+  .panel.locked .panel-body{pointer-events:none;user-select:none;opacity:.32}
+
+  /* ===== Nút ===== */
+  .btn{display:inline-flex;align-items:center;gap:9px;font-weight:600;font-size:14px;
+    border:1.5px solid var(--ink);border-radius:9px;padding:10px 18px;background:var(--card);color:var(--ink);
+    transition:transform .12s,box-shadow .12s}
+  .btn svg{width:16px;height:16px}
+  .btn:hover{transform:translate(-1.5px,-1.5px);box-shadow:3.5px 3.5px 0 var(--ink)}
+  .btn:active{transform:none;box-shadow:none}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+  .btn.primary{background:var(--ink);color:var(--cream)}
+  .btn.accent{background:var(--acc);border-color:var(--acc-dark);color:#FFF6ED}
+  .btn.lg{padding:12px 22px;font-size:15px}
+
+  .icon-btn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+    border:1.5px solid var(--ink);border-radius:8px;background:var(--field);color:var(--ink);transition:background .12s,color .12s}
+  .icon-btn svg{width:15px;height:15px;display:block}
+  .icon-btn:hover{background:var(--ink);color:var(--cream)}
+  .icon-btn.danger:hover{background:var(--acc);border-color:var(--acc-dark)}
+  .icon-btn.bare{border:none;background:transparent;width:30px}
+  .icon-btn.bare:hover{background:var(--ink-15);color:var(--ink)}
+
+  /* ===== Bước 1: key ===== */
+  .keyrow{display:flex;gap:12px;flex-wrap:wrap}
+  .keywrap{flex:1;min-width:260px;display:flex;align-items:center;gap:8px;
+    background:var(--field);border:1.5px solid var(--ink);border-radius:9px;padding:0 5px 0 13px}
+  .keywrap .kicon{width:17px;height:17px;color:var(--ink-60);flex:none}
+  .keywrap input{flex:1;min-width:0;border:none;background:none;font:inherit;letter-spacing:.04em;padding:11px 0}
+  .keywrap input:focus{outline:none}
+  .keywrap:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px rgba(193,58,27,.13)}
+
+  .hint{margin-top:12px;font-family:var(--mono);font-size:11px;letter-spacing:.03em;color:var(--ink-60);line-height:1.7}
+  .hint.tight{margin-top:0}
+
+  .key-status{margin-top:16px;border-radius:9px;padding:13px 16px;font-size:13.5px;line-height:1.55}
+  .key-status.ok{background:#EFE8D8;border:1.5px solid var(--ink)}
+  .key-status.error{background:#F6E2D8;border:1.5px solid var(--acc);color:var(--acc-dark)}
+  .ks-title{display:flex;align-items:center;gap:8px;font-weight:600}
+  .ks-title svg{width:16px;height:16px;flex:none}
+  .key-status.ok .ks-title svg{color:var(--ink)}
+  .key-status.error .ks-title svg{color:var(--acc-dark)}
+  .ks-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+  .chip{border:1px solid var(--ink-35);border-radius:5px;padding:3px 8px;font-size:11px;letter-spacing:.02em}
+  .ks-note{margin-top:10px;font-size:12.5px;color:var(--ink-60)}
+  .ks-note.ks-warn{color:var(--acc-dark);font-weight:500}
+
+  /* ===== Bước 2: các đoạn ===== */
+  .seg{border:1.5px solid var(--ink);border-radius:10px;background:var(--field);padding:14px 16px 16px;margin-top:14px}
+  .seg.dragging{opacity:.45;border-style:dashed}
+  .seg-head{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+  .drag-handle{cursor:grab;color:var(--ink-60);display:flex;padding:3px}
+  .drag-handle:active{cursor:grabbing}
+  .drag-handle svg{width:14px;height:18px}
+  .seg-index{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.12em;background:var(--ink);color:var(--cream);padding:2.5px 9px;border-radius:4px}
+  .seg-status{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-60);display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .seg-status .dot{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink);flex:none}
+  .st-loading .dot{background:var(--acc);border-color:var(--acc-dark);animation:pulse 1s ease-in-out infinite}
+  .st-ready .dot{background:var(--ink)}
+  .st-error .dot{background:var(--acc);border-color:var(--acc-dark)}
+  .st-error .txt{color:var(--acc-dark)}
+  @keyframes pulse{50%{opacity:.3}}
+  .seg-actions{display:flex;gap:6px}
+
+  textarea.seg-text{width:100%;min-height:92px;resize:vertical;background:var(--field);border:1.5px solid var(--ink);border-radius:9px;padding:11px 13px;font:inherit;line-height:1.6;color:var(--ink)}
+  textarea.seg-text:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px rgba(193,58,27,.13)}
+
+  .seg-controls{display:grid;grid-template-columns:minmax(210px,1.5fr) 1fr 1fr;gap:16px;margin-top:13px}
+  .field{display:block;min-width:0}
+  .flabel{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-60);margin-bottom:7px}
+  .flabel b{color:var(--acc);font-weight:600;font-size:11px;letter-spacing:0;font-variant-numeric:tabular-nums}
+
+  select{width:100%;appearance:none;-webkit-appearance:none;background:var(--field);border:1.5px solid var(--ink);border-radius:8px;padding:9px 30px 9px 12px;font:inherit;font-size:13.5px;color:var(--ink);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%231B1712' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center}
+  select:focus{outline:none;border-color:var(--acc)}
+
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent;cursor:pointer;margin-top:1px}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--ink);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;background:var(--acc);border:1.5px solid var(--ink);border-radius:4px;margin-top:-6px}
+  input[type=range]::-moz-range-track{height:3px;background:var(--ink);border-radius:2px}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;background:var(--acc);border:1.5px solid var(--ink);border-radius:4px}
+
+  .seg-wave{margin-top:13px}
+  .seg-wave canvas{display:block;width:100%;height:42px;border:1px dashed var(--ink-35);border-radius:7px;background:#FAF6EB}
+
+  .btn-add{width:100%;margin-top:16px;padding:13px;border:1.5px dashed var(--ink);border-radius:10px;background:transparent;
+    display:flex;align-items:center;justify-content:center;gap:9px;font-weight:600;font-size:14px;color:var(--ink);transition:all .12s}
+  .btn-add svg{width:16px;height:16px}
+  .btn-add:hover{border-style:solid;background:var(--field);transform:translate(-1.5px,-1.5px);box-shadow:3.5px 3.5px 0 var(--ink)}
+
+  /* ===== Bước 3: ghép ===== */
+  .mix-controls{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap}
+  .gapfield{flex:1;min-width:220px}
+  .mix-stats{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink-60);font-variant-numeric:tabular-nums;padding-bottom:6px;white-space:nowrap}
+
+  .tl-wrap{margin-top:16px}
+  #mixCanvas{display:block;width:100%;height:118px;background:var(--field);border:1.5px solid var(--ink);border-radius:10px;cursor:pointer}
+
+  .mix-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+  .mix-progress{font-family:var(--mono);font-size:11.5px;color:var(--acc);font-variant-numeric:tabular-nums}
+
+  /* ===== Toast ===== */
+  .toast-wrap{position:fixed;bottom:20px;left:20px;display:flex;flex-direction:column;gap:10px;z-index:100}
+  .toast{display:flex;gap:10px;align-items:flex-start;max-width:380px;background:var(--ink);color:var(--cream);
+    border-radius:9px;padding:12px 16px;font-size:13.5px;line-height:1.5;box-shadow:4px 5px 0 rgba(27,23,18,.25);
+    border-left:4px solid var(--cream);animation:toastIn .25s ease}
+  .toast.error{border-left-color:var(--acc)}
+  .toast svg{width:16px;height:16px;flex:none;margin-top:2px}
+  .toast.out{opacity:0;transform:translateY(6px);transition:all .3s}
+  @keyframes toastIn{from{opacity:0;transform:translateY(8px)}}
+
+  footer{margin-top:44px;padding-top:16px;border-top:1.5px solid var(--ink);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-60)}
+
+  @media (max-width:720px){
+    .hero{flex-direction:column;align-items:flex-start;gap:22px}
+    .cassette{max-width:250px}
+    .seg-controls{grid-template-columns:1fr}
+    .step-note{display:none}
+    .mix-stats{margin-left:0}
+  }
+</style>
+</head>
+<body>
+<div class="toast-wrap" id="toasts"></div>
+
+<div class="pagelayout">
+
+  <!-- ============ RAIL HẠN MỨC (sticky phải) ============ -->
+  <aside class="quotarail">
+    <div class="quotapanel" id="quotaPanel">
+      <button class="qp-head" id="qpToggle" type="button">
+        <svg class="gicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.5 17a8.7 8.7 0 1 1 15 0"/><path d="M12 17l3.6-5.2"/></svg>
+        <span>HẠN MỨC · <b id="qpMonth">–</b></span>
+        <svg class="qp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="qp-body">
+        <div id="qpRows"></div>
+        <div class="qp-total" id="qpTotal">TỔNG · 0 KÝ TỰ</div>
+        <button class="qp-reset" id="qpReset" type="button">ĐẶT LẠI BỘ ĐẾM</button>
+        <p class="qp-note">ĐẾM CỤC BỘ, CHỈ TÍNH LẦN GỌI API THÀNH CÔNG (KỂ CẢ NGHE THỬ). TỰ VỀ 0 VÀO MÙNG 1. SỐ LIỆU CHÍNH XÁC THEO GOOGLE: CONSOLE → BILLING → REPORTS.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ CỘT CHÍNH ============ -->
+  <div class="wrap">
+
+    <header class="hero">
+      <div>
+        <p class="kicker">GOOGLE CLOUD TEXT-TO-SPEECH · TIẾNG VIỆT VI-VN</p>
+        <h1>Ghép giọng đọc <em>nữ miền Bắc</em><br>thành một bản thu duy nhất.</h1>
+        <p class="lede">Soạn từng câu, chọn từng giọng, nghe thử ngay — rồi ghép tất cả các đoạn thành một tệp âm thanh để tải về. Mọi thứ chạy trong trình duyệt của bạn.</p>
+      </div>
+
+      <svg class="cassette" viewBox="0 0 340 210" aria-hidden="true">
+        <rect x="10" y="10" width="320" height="190" rx="14" fill="#FBF8F0" stroke="#1B1712" stroke-width="3"/>
+        <rect x="26" y="26" width="288" height="58" rx="6" fill="none" stroke="#1B1712" stroke-width="2"/>
+        <text x="42" y="52" class="cs-label">GHÉP GIỌNG</text>
+        <text x="42" y="72" class="cs-sub">C-90 · MIỀN BẮC</text>
+        <text x="298" y="72" text-anchor="end" class="cs-acc">vi-VN</text>
+        <rect x="75" y="98" width="190" height="86" rx="10" fill="#FFFEFA" stroke="#1B1712" stroke-width="2"/>
+        <g class="reel">
+          <circle cx="125" cy="141" r="30" fill="none" stroke="#1B1712" stroke-width="2.5"/>
+          <path d="M125 113v56M97 141h56M105.2 122.2l39.6 39.6" stroke="#1B1712" stroke-width="2.5"/>
+          <circle cx="125" cy="141" r="9" fill="#1B1712"/>
+        </g>
+        <g class="reel">
+          <circle cx="215" cy="141" r="30" fill="none" stroke="#1B1712" stroke-width="2.5"/>
+          <path d="M215 113v56M187 141h56M195.2 122.2l39.6 39.6" stroke="#1B1712" stroke-width="2.5"/>
+          <circle cx="215" cy="141" r="9" fill="#1B1712"/>
+        </g>
+        <path d="M162 128l12 7-12 7z" fill="#C13A1B"/>
+        <g stroke="#1B1712" stroke-width="1.5">
+          <circle cx="27" cy="20" r="4"/><path d="M25 20h4"/>
+          <circle cx="313" cy="20" r="4"/><path d="M311 20h4"/>
+          <circle cx="27" cy="190" r="4"/><path d="M25 190h4"/>
+          <circle cx="313" cy="190" r="4"/><path d="M311 190h4"/>
+        </g>
+      </svg>
+    </header>
+
+    <section class="panel" id="panel1">
+      <div class="panel-head">
+        <span class="step-no">01</span>
+        <h2 class="step-title">Kết nối Google Cloud</h2>
+        <span class="step-note">TEXT-TO-SPEECH API</span>
+      </div>
+      <div class="panel-body">
+        <div class="keyrow">
+          <div class="keywrap">
+            <svg class="kicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="14" r="4.5"/><path d="M11 11.2 20.5 3m0 0v4.5m0-4.5H16"/></svg>
+            <input id="apiKey" type="password" placeholder="Dán API key (bắt đầu bằng AIza…)" autocomplete="off" spellcheck="false">
+            <button class="icon-btn bare" id="btnEye" title="Hiện / ẩn key">
+              <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <button class="btn primary" id="btnValidate">Kiểm tra &amp; lấy giọng nói</button>
+        </div>
+        <p class="hint">KEY ĐI THẲNG TỪ TRÌNH DUYỆT TỚI texttospeech.googleapis.com — KHÔNG QUA SERVER NÀO KHÁC, KHÔNG LƯU LẠI SAU KHI ĐÓNG TRANG. MỨC DÙNG THÁNG NÀY THEO DÕI Ở BẢNG HẠN MỨC CỌC BÊN PHẢI.</p>
+        <div class="key-status" id="keyStatus" hidden></div>
+      </div>
+    </section>
+
+    <section class="panel locked" id="panel2">
+      <div class="panel-head">
+        <span class="step-no">02</span>
+        <h2 class="step-title">Soạn các đoạn</h2>
+        <span class="step-note">GIỌNG NỮ VI-VN</span>
+      </div>
+      <div class="panel-body">
+        <p class="hint tight">MỖI ĐOẠN MỚI MẶC ĐỊNH TỐC ĐỘ 1,35× · GIỌNG ĐẦU THEO THỨ TỰ: CHIRP3-HD-DESPINA → STANDARD-C → WAVENET-A → WAVENET-C → CHIRP3-HD-ZEPHYR · TỪ ĐOẠN 6 LẶP LẠI TỪ ĐẦU.</p>
+        <div id="segList"></div>
+        <button class="btn-add" id="btnAddSeg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Thêm đoạn mới
+        </button>
+      </div>
+      <div class="lockcover">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>
+        XÁC THỰC API KEY Ở BƯỚC 01 ĐỂ MỞ
+      </div>
+    </section>
+
+    <section class="panel locked" id="panel3">
+      <div class="panel-head">
+        <span class="step-no">03</span>
+        <h2 class="step-title">Ghép &amp; tải về</h2>
+        <span class="step-note">WAV 16-BIT PCM</span>
+      </div>
+      <div class="panel-body">
+        <div class="mix-controls">
+          <div class="gapfield">
+            <span class="flabel">KHOẢNG LẶNG GIỮA CÁC ĐOẠN <b id="gapVal">250 ms</b></span>
+            <input type="range" id="gapRange" min="0" max="800" step="50" value="250">
+          </div>
+          <div class="mix-stats" id="mixStats">0 đoạn · 0:00,0</div>
+        </div>
+        <div class="tl-wrap"><canvas id="mixCanvas" title="Nhấn để phát từ vị trí này"></canvas></div>
+        <div class="mix-actions">
+          <button class="btn accent lg" id="btnPlayMix">
+            <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+            <span>Phát bản ghép</span>
+          </button>
+          <button class="btn primary lg" id="btnDownload">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M4.5 19.5h15"/></svg>
+            <span>Tải WAV</span>
+          </button>
+          <span class="mix-progress" id="mixProgress"></span>
+        </div>
+        <p class="hint">NHẤN VÀO DẢI SÓNG ĐỂ PHÁT TỪ VỊ TRÍ BẤT KỲ · CÁC ĐOẠN CHƯA TỔNG HỢP SẼ ĐƯỢC TỰ ĐỘNG TẠO TRƯỚC KHI GHÉP.</p>
+      </div>
+      <div class="lockcover">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>
+        XÁC THỰC API KEY Ở BƯỚC 01 ĐỂ MỞ
+      </div>
+    </section>
+
+    <footer>
+      <span>GHÉP GIỌNG · STUDIO TTS TIẾNG VIỆT</span>
+      <span>GHÉP ÂM &amp; XUẤT TỆP DIỄN RA CỤC BỘ TRONG TRÌNH DUYỆT</span>
+    </footer>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   GHÉP GIỌNG — Google Cloud Text-to-Speech (client-side)
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const API_BASE = 'https://texttospeech.googleapis.com/v1';
+const ACC = '#C13A1B';
+
+/* ===== Mặc định theo yêu cầu ===== */
+const DEFAULT_RATE = 1.35;   /* tốc độ mặc định cho mọi đoạn mới */
+const DEFAULT_VOICE_SEQ = [  /* giọng mặc định theo thứ tự đoạn (lặp vòng từ đoạn 6) */
+  'vi-VN-Chirp3-HD-Despina',
+  'vi-VN-Standard-C',
+  'vi-VN-Wavenet-A',
+  'vi-VN-Wavenet-C',
+  'vi-VN-Chirp3-HD-Zephyr'
+];
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let apiKey = '';
+let voices = [];
+let segments = [];
+let seq = 0;
+let mixBuffer = null;
+let gapMs = 250;
+let playState = null;
+let previewSrc = null;
+let playheadPos = 0;
+let mixBusy = false;
+let spinCount = 0;
+
+/* ---------- Bộ icon SVG dùng lại ---------- */
+const IC = {
+  play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
+  stop: '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 0 1 13-5.1M19.5 12a7.5 7.5 0 0 1-13 5.1M17.5 2.5v4.4h-4.4M6.5 21.5v-4.4h4.4"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15M9.5 7V4.5h5V7M7 7l1 12.5h8L17 7M10 10.5v6M14 10.5v6"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.7"/><circle cx="15" cy="5" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="19" r="1.7"/><circle cx="15" cy="19" r="1.7"/></svg>',
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14m0 0 6-6m-6 6-6-6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16.3v.2"/></svg>'
+};
+
+/* ---------- Toast ---------- */
+function toast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (type === 'error' ? ' error' : '');
+  const ic = document.createElement('span');
+  ic.innerHTML = type === 'error' ? IC.alert : IC.check;
+  const tx = document.createElement('span');
+  tx.textContent = msg;
+  t.append(ic, tx);
+  $('#toasts').appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 320); }, 4800);
+}
+
+/* ---------- Cassette quay ---------- */
+function spinInc(d) {
+  spinCount = Math.max(0, spinCount + d);
+  document.body.classList.toggle('spinning', spinCount > 0);
+}
+
+/* =========================================================
+   RAIL HẠN MỨC — bảng giá + bộ đếm ký tự theo tháng
+   ========================================================= */
+const QUOTA_META = {
+  'Standard':  { limit: 4000000, price: 4  },
+  'Wavenet':   { limit: 1000000, price: 16 },
+  'Neural2':   { limit: 1000000, price: 16 },
+  'Chirp3-HD': { limit: 1000000, price: 30 },
+  'Studio':    { limit: 0,       price: 160 }
+};
+const RAIL_FAMS = ['Standard', 'Wavenet', 'Neural2', 'Chirp3-HD'];
+const LS_KEY = 'ghep-giong-quota-v1';
+
+const monthKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+const fmtNum = n => n.toLocaleString('vi-VN');
+const fmtBig = n => n >= 1e6
+  ? ((n / 1e6).toFixed(n % 1e6 ? 2 : 0).replace('.', ',') + ' triệu')
+  : fmtNum(n);
+const familyOf = name => name.split('-').slice(2, -1).join('-');
+
+function loadQuota() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (raw && raw.month === monthKey() && raw.usage) return raw;
+  } catch (e) {}
+  return { month: monthKey(), usage: {} };
+}
+function saveQuota() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(quotaStore)); } catch (e) {}
+}
+let quotaStore = loadQuota();
+
+function recordUsage(fam, chars) {
+  if (quotaStore.month !== monthKey()) quotaStore = { month: monthKey(), usage: {} };
+  quotaStore.usage[fam] = (quotaStore.usage[fam] || 0) + chars;
+  saveQuota();
+  renderQuota();
+}
+
+function renderQuota() {
+  if (quotaStore.month !== monthKey()) { quotaStore = { month: monthKey(), usage: {} }; saveQuota(); }
+  const now = new Date();
+  $('#qpMonth').textContent = (now.getMonth() + 1) + '/' + now.getFullYear();
+  const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const day = now.getDate();
+
+  const extra = Object.keys(quotaStore.usage).filter(f => !QUOTA_META[f]);
+  const fams = [...RAIL_FAMS, 'Studio', ...extra];
+  let total = 0, html = '';
+
+  for (const fam of fams) {
+    const m = QUOTA_META[fam] || { limit: 0, price: 0 };
+    const used = quotaStore.usage[fam] || 0;
+    total += used;
+    const always = RAIL_FAMS.includes(fam);
+    if (!always && used === 0) continue;
+
+    let barW = 0, over = 0, right = '', priceLeft;
+    if (m.limit > 0) {
+      barW = Math.min(100, used / m.limit * 100);
+      over = Math.max(0, used - m.limit);
+      right = over > 0
+        ? 'vượt ' + fmtNum(over) + ' ≈ $' + (over / 1e6 * m.price).toFixed(2).replace('.', ',')
+        : (used > 0 ? 'còn ' + fmtNum(m.limit - used) : '');
+      priceLeft = 'miễn phí ' + fmtBig(m.limit) + ' · $' + m.price + '/1M';
+    } else {
+      right = used > 0 ? fmtNum(used) + ' ký tự' : '';
+      priceLeft = fam in QUOTA_META
+        ? 'không miễn phí · $' + m.price + '/1M'
+        : 'đơn giá chưa rõ';
+    }
+
+    let proj = '';
+    if (used > 0 && m.limit > 0 && day >= 3) {
+      const p = used / day * dim;
+      const warn = p > m.limit;
+      proj = '<div class="qproj' + (warn ? ' warn' : '') + '">→ cuối tháng ~' + fmtBig(p) + (warn ? ' (vượt)' : '') + '</div>';
+    }
+
+    html +=
+      '<div class="qrow' + (over > 0 ? ' over' : '') + '">' +
+        '<div class="qrow-top"><span class="qfam">' + fam.toUpperCase() + '</span>' +
+        '<span>' + (m.limit ? fmtNum(used) + ' / ' + fmtBig(m.limit) : fmtNum(used)) + '</span></div>' +
+        (m.limit ? '<div class="qbar"><i style="width:' + barW.toFixed(1) + '%"></i></div>' : '') +
+        '<div class="qrow-meta"><span>' + priceLeft + '</span><span class="qright">' + right + '</span></div>' +
+        proj +
+      '</div>';
+  }
+  $('#qpRows').innerHTML = html;
+  $('#qpTotal').textContent = 'TỔNG · ' + fmtNum(total) + ' KÝ TỰ';
+}
+
+ $('#qpToggle').addEventListener('click', () => $('#quotaPanel').classList.toggle('closed'));
+ $('#qpReset').addEventListener('click', () => {
+  quotaStore = { month: monthKey(), usage: {} };
+  saveQuota();
+  renderQuota();
+  toast('Đã đặt lại bộ đếm hạn mức về 0.', 'ok');
+});
+const mqNarrow = window.matchMedia('(max-width:1239px)');
+const syncQuotaOpen = () => $('#quotaPanel').classList.toggle('closed', mqNarrow.matches);
+syncQuotaOpen();
+if (mqNarrow.addEventListener) mqNarrow.addEventListener('change', syncQuotaOpen);
+
+/* ---------- Định dạng ---------- */
+function fmtDur(s) {
+  const m = Math.floor(s / 60), r = s - m * 60;
+  return m + ':' + r.toFixed(1).replace('.', ',').padStart(4, '0');
+}
+
+/* =========================================================
+   BƯỚC 01 — VALIDATE API KEY
+   ========================================================= */
+async function validateKey(key) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/voices?languageCode=vi-VN&key=${encodeURIComponent(key)}`);
+  } catch (e) {
+    throw new Error('Không kết nối được tới Google — kiểm tra mạng hoặc trình chặn của trình duyệt.');
+  }
+  let msg = '';
+  if (!res.ok) {
+    try { const j = await res.json(); msg = (j && j.error && j.error.message) || ''; } catch (e) {}
+    if (res.status === 400) throw new Error('Key không hợp lệ — Google từ chối định dạng. Kiểm tra lại chuỗi AIza…');
+    if (res.status === 403) {
+      if (/has not been used|is disabled|not been enabled/i.test(msg))
+        throw new Error('Key được chấp nhận, nhưng Text-to-Speech API chưa được bật cho dự án. Vào Google Cloud Console → APIs & Services → Library → bật “Cloud Text-to-Speech API”, rồi thử lại.');
+      if (/quota|billing/i.test(msg))
+        throw new Error('Key bị từ chối vì hạn mức / hóa đơn: ' + msg);
+      throw new Error('Key bị từ chối (403): ' + (msg || 'không rõ lý do'));
+    }
+    if (res.status === 429) throw new Error('Gọi quá nhanh — chờ vài giây rồi bấm kiểm tra lại.');
+    throw new Error('Lỗi khi xác thực (HTTP ' + res.status + '): ' + (msg || 'không rõ'));
+  }
+  const data = await res.json();
+  const fem = (data.voices || []).filter(v =>
+    (v.ssmlGender || '').toUpperCase() === 'FEMALE' && (v.languageCodes || []).includes('vi-VN'));
+  if (!fem.length) throw new Error('Key hợp lệ nhưng không tìm thấy giọng nữ vi-VN nào — thử lại hoặc kiểm tra dự án.');
+  return fem;
+}
+
+function showKeyStatus(type, html) {
+  const box = $('#keyStatus');
+  box.hidden = false;
+  box.className = 'key-status ' + type;
+  box.innerHTML = html;
+}
+
+const PRIO = { 'Chirp3-HD': 5, 'Neural2': 4, 'Studio': 3, 'Wavenet': 2, 'Standard': 1 };
+const modelOf = v => familyOf(v.name);
+const QUAL = { 'Chirp3-HD': 'tốt nhất hiện có', 'Neural2': 'chất lượng cao', 'Studio': 'chất lượng studio', 'Wavenet': 'rất tự nhiên', 'Standard': 'tiêu chuẩn' };
+function voiceLabel(v) {
+  const parts = v.name.split('-');
+  const model = parts.slice(2, -1).join('-');
+  const q = QUAL[model];
+  return model + '-' + parts[parts.length - 1] + (q ? ' · ' + q : ' · nữ miền Bắc');
+}
+
+async function onValidate() {
+  const key = $('#apiKey').value.trim();
+  if (!key) { showKeyStatus('error', 'Hãy dán API key vào ô trên rồi bấm kiểm tra.'); return; }
+  const btn = $('#btnValidate');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Đang kiểm tra…';
+  try {
+    const fem = await validateKey(key);
+    apiKey = key;
+    voices = fem.slice().sort((a, b) =>
+      (PRIO[modelOf(b)] || 0) - (PRIO[modelOf(a)] || 0) || a.name.localeCompare(b.name));
+
+    /* cảnh báo nếu giọng mặc định yêu cầu không có trong danh sách nữ */
+    const missing = DEFAULT_VOICE_SEQ.filter(nm => !voices.some(v => v.name === nm));
+    const missingNote = missing.length
+      ? '<div class="ks-note ks-warn">Không có trong danh sách giọng nữ vi-VN: ' +
+        missing.map(nm => nm.replace('vi-VN-', '')).join(', ') +
+        ' — đoạn tương ứng sẽ dùng giọng thay thế; đổi tay trong ô GIỌNG nếu cần.</div>'
+      : '';
+
+    showKeyStatus('ok',
+      '<div class="ks-title">' + IC.check + 'Key hợp lệ — ' + fem.length + ' giọng nữ vi-VN khả dụng</div>' +
+      '<div class="ks-chips">' + voices.map(v => '<span class="chip">' + v.name.replace('vi-VN-', '') + '</span>').join('') + '</div>' +
+      '<div class="ks-note">Tất cả giọng vi-VN của Google đều đọc chuẩn phương ngữ miền Bắc (Hà Nội).</div>' +
+      missingNote);
+    $('#panel2').classList.remove('locked');
+    $('#panel3').classList.remove('locked');
+    if (!segments.length) addSegment();
+    segments.forEach(fillVoiceOptions);
+    toast('Đã kết nối — ' + fem.length + ' giọng nữ vi-VN sẵn sàng.', 'ok');
+  } catch (err) {
+    showKeyStatus('error', err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+/* =========================================================
+   BƯỚC 02 — SOẠN ĐOẠN / NGHE THỬ
+   ========================================================= */
+function preferredVoice() {
+  return (voices.find(v => /Neural2/.test(v.name)) || voices[0] || { name: '' }).name;
+}
+
+/* giọng mặc định theo vị trí đoạn: 1→Despina, 2→Standard-C, 3→Wavenet-A,
+   4→Wavenet-C, 5→Zephyr, 6+ lặp lại vòng; nếu không có trong danh sách
+   thì rơi về giọng của đoạn liền trước, rồi tới giọng đầu tiên khả dụng */
+function defaultVoice() {
+  const n = segments.length; /* đoạn sắp tạo là đoạn thứ n+1 */
+  const want = DEFAULT_VOICE_SEQ[n % DEFAULT_VOICE_SEQ.length];
+  if (voices.some(v => v.name === want)) return want;
+  if (segments.length) return segments[segments.length - 1].voice;
+  const firstAvail = DEFAULT_VOICE_SEQ.find(nm => voices.some(v => v.name === nm));
+  return firstAvail || preferredVoice();
+}
+
+function addSegment(focus) {
+  const seg = { id: ++seq, text: '', voice: defaultVoice(), rate: DEFAULT_RATE, pitch: 0,
+                buffer: null, duration: 0, stale: false, busy: false, error: false, el: null };
+  segments.push(seg);
+  renderSegCard(seg);
+  invalidateMix();
+  if (focus) {
+    seg.el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    seg.el.querySelector('.seg-text').focus();
+  }
+}
+
+function renderSegCard(seg) {
+  const wrap = document.createElement('div');
+  wrap.className = 'seg';
+  wrap.dataset.id = seg.id;
+  wrap.innerHTML =
+    '<div class="seg-head">' +
+      '<span class="drag-handle" title="Kéo để đổi thứ tự">' + IC.grip + '</span>' +
+      '<span class="seg-index">ĐOẠN --</span>' +
+      '<span class="seg-status st-idle"><i class="dot"></i><span class="txt">Chưa tổng hợp</span></span>' +
+      '<span class="seg-actions">' +
+        '<button class="icon-btn" data-act="up" title="Đưa lên trước">' + IC.up + '</button>' +
+        '<button class="icon-btn" data-act="down" title="Chuyển xuống sau">' + IC.down + '</button>' +
+        '<button class="icon-btn" data-act="play" title="Nghe thử">' + IC.play + '</button>' +
+        '<button class="icon-btn" data-act="resynth" title="Tổng hợp lại">' + IC.refresh + '</button>' +
+        '<button class="icon-btn danger" data-act="del" title="Xóa đoạn">' + IC.trash + '</button>' +
+      '</span>' +
+    '</div>' +
+    '<textarea class="seg-text" rows="3" placeholder="Nhập đoạn văn cần đọc…"></textarea>' +
+    '<div class="seg-controls">' +
+      '<label class="field"><span class="flabel">GIỌNG</span><select class="seg-voice"></select></label>' +
+      '<label class="field"><span class="flabel">TỐC ĐỘ <b class="rv-rate">' + DEFAULT_RATE.toFixed(2).replace('.', ',') + '×</b></span>' +
+        '<input class="seg-rate" type="range" min="0.5" max="1.6" step="0.05" value="' + DEFAULT_RATE + '"></label>' +
+      '<label class="field"><span class="flabel">CAO ĐỘ <b class="rv-pitch">0 st</b></span>' +
+        '<input class="seg-pitch" type="range" min="-10" max="10" step="1" value="0"></label>' +
+    '</div>' +
+    '<div class="seg-wave" hidden><canvas></canvas></div>';
+  $('#segList').appendChild(wrap);
+  seg.el = wrap;
+  fillVoiceOptions(seg);
+  wireSegEvents(seg);
+  updateSegIndexLabels();
+}
+
+function fillVoiceOptions(seg) {
+  const sel = seg.el.querySelector('.seg-voice');
+  sel.innerHTML = voices.map(v => '<option value="' + v.name + '">' + voiceLabel(v) + '</option>').join('');
+  if (!voices.some(v => v.name === seg.voice)) seg.voice = preferredVoice();
+  sel.value = seg.voice;
+}
+
+function wireSegEvents(seg) {
+  const q = s => seg.el.querySelector(s);
+  q('.seg-text').addEventListener('input', e => { seg.text = e.target.value; markStale(seg); });
+  q('.seg-voice').addEventListener('change', e => { seg.voice = e.target.value; markStale(seg); });
+  q('.seg-rate').addEventListener('input', e => {
+    seg.rate = +e.target.value;
+    q('.rv-rate').textContent = seg.rate.toFixed(2).replace('.', ',') + '×';
+    markStale(seg);
+  });
+  q('.seg-pitch').addEventListener('input', e => {
+    seg.pitch = +e.target.value;
+    q('.rv-pitch').textContent = (seg.pitch > 0 ? '+' + seg.pitch : seg.pitch) + ' st';
+    markStale(seg);
+  });
+  q('.seg-actions').addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'play') previewSeg(seg);
+    else if (act === 'resynth') { seg.stale = true; synthSeg(seg).catch(() => {}); }
+    else if (act === 'del') removeSeg(seg);
+    else if (act === 'up') moveSeg(seg, -1);
+    else if (act === 'down') moveSeg(seg, 1);
+  });
+}
+
+function markStale(seg) {
+  if (seg.buffer) {
+    seg.stale = true;
+    setStatus(seg, 'idle', 'Đã thay đổi — nghe thử lại');
+  }
+  const w = seg.el.querySelector('.seg-wave');
+  if (w) w.hidden = true;
+  invalidateMix();
+}
+
+function setStatus(seg, cls, text) {
+  const st = seg.el.querySelector('.seg-status');
+  st.className = 'seg-status st-' + cls;
+  st.querySelector('.txt').textContent = text ||
+    ({ idle: 'Chưa tổng hợp', loading: 'Đang tổng hợp…', ready: 'Sẵn sàng · ' + fmtDur(seg.duration), error: 'Lỗi — thử lại' })[cls];
+}
+
+function removeSeg(seg) {
+  stopPreview();
+  segments = segments.filter(s => s !== seg);
+  seg.el.remove();
+  updateSegIndexLabels();
+  invalidateMix();
+  if (!segments.length) toast('Đã xóa hết đoạn — bấm “Thêm đoạn mới” để bắt đầu lại.', 'ok');
+}
+
+function moveSeg(seg, dir) {
+  const el = seg.el;
+  const sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling;
+  if (!sib) return;
+  if (dir < 0) el.parentNode.insertBefore(el, sib);
+  else el.parentNode.insertBefore(sib, el);
+  refreshOrder();
+}
+
+function updateSegIndexLabels() {
+  $('#segList').querySelectorAll('.seg').forEach((el, i) => {
+    el.querySelector('.seg-index').textContent = 'ĐOẠN ' + String(i + 1).padStart(2, '0');
+  });
+}
+
+/* ---------- Kéo thả đổi thứ tự ---------- */
+let dragId = null;
+const segList = $('#segList');
+segList.addEventListener('mousedown', e => {
+  const h = e.target.closest('.drag-handle');
+  if (h) h.closest('.seg').draggable = true;
+});
+segList.addEventListener('dragstart', e => {
+  const el = e.target.closest('.seg');
+  if (!el) return;
+  dragId = +el.dataset.id;
+  el.classList.add('dragging');
+  e.dataTransfer.setData('text/plain', '');
+  e.dataTransfer.effectAllowed = 'move';
+});
+segList.addEventListener('dragover', e => {
+  e.preventDefault();
+  if (dragId == null) return;
+  const dragging = segList.querySelector('.seg.dragging');
+  if (!dragging) return;
+  const target = e.target.closest('.seg');
+  if (!target || target === dragging) return;
+  const r = target.getBoundingClientRect();
+  const before = e.clientY < r.top + r.height / 2;
+  if (before && target.previousElementSibling !== dragging) segList.insertBefore(dragging, target);
+  else if (!before && target.nextElementSibling !== dragging) segList.insertBefore(dragging, target.nextSibling);
+});
+segList.addEventListener('drop', e => e.preventDefault());
+segList.addEventListener('dragend', () => {
+  const el = segList.querySelector('.seg.dragging');
+  if (el) { el.classList.remove('dragging'); el.draggable = false; }
+  dragId = null;
+  refreshOrder();
+});
+function refreshOrder() {
+  segments = [...segList.children].map(el => segments.find(s => s.id === +el.dataset.id)).filter(Boolean);
+  updateSegIndexLabels();
+  invalidateMix();
+}
+
+/* ---------- Gọi API tổng hợp cho 1 đoạn ---------- */
+async function synthSeg(seg) {
+  if (seg.busy) throw new Error('Đoạn đang được tổng hợp, chờ chút.');
+  seg.busy = true; seg.error = false;
+  setStatus(seg, 'loading');
+  spinInc(1);
+  try {
+    const res = await fetch(`${API_BASE}/text:synthesize?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: { text: seg.text },
+        voice: { languageCode: 'vi-VN', name: seg.voice },
+        audioConfig: { audioEncoding: 'MP3', speakingRate: seg.rate, pitch: seg.pitch }
+      })
+    });
+    if (!res.ok) {
+      let msg = '';
+      try { const j = await res.json(); msg = (j && j.error && j.error.message) || ''; } catch (e) {}
+      if (res.status === 403 && /quota/i.test(msg)) throw new Error('Hết hạn mức (quota) Text-to-Speech cho key này.');
+      throw new Error('Tổng hợp thất bại (HTTP ' + res.status + '): ' + (msg || 'không rõ lỗi'));
+    }
+    const data = await res.json();
+    if (!data.audioContent) throw new Error('Google không trả về âm thanh.');
+    const bin = Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0));
+    seg.buffer = await audioCtx.decodeAudioData(bin.buffer);
+    seg.duration = seg.buffer.duration;
+    seg.stale = false;
+    recordUsage(familyOf(seg.voice), seg.text.length);
+    setStatus(seg, 'ready');
+    drawSegWave(seg);
+    invalidateMix();
+  } catch (err) {
+    seg.error = true;
+    setStatus(seg, 'error', 'Lỗi — thử lại');
+    toast(err.message || 'Lỗi không rõ khi tổng hợp.', 'error');
+    throw err;
+  } finally {
+    seg.busy = false;
+    spinInc(-1);
+  }
+}
+
+/* ---------- Nghe thử 1 đoạn ---------- */
+function stopPreview() {
+  if (previewSrc) { try { previewSrc.stop(); } catch (e) {} previewSrc = null; }
+}
+async function previewSeg(seg) {
+  if (seg.busy) return;
+  if (!seg.text.trim()) { toast('Đoạn này chưa có nội dung — nhập văn bản trước.', 'error'); return; }
+  stopMixPlayback();
+  stopPreview();
+  try {
+    if (!seg.buffer || seg.stale) await synthSeg(seg);
+    await audioCtx.resume();
+    stopPreview();
+    previewSrc = audioCtx.createBufferSource();
+    previewSrc.buffer = seg.buffer;
+    previewSrc.connect(audioCtx.destination);
+    previewSrc.start();
+    spinInc(1);
+    previewSrc.addEventListener('ended', () => spinInc(-1));
+  } catch (e) { /* toast đã hiển thị trong synthSeg */ }
+}
+
+/* =========================================================
+   VẼ SÓNG ÂM
+   ========================================================= */
+function drawSegWave(seg) {
+  if (!seg.el || !seg.buffer || seg.stale) return;
+  const wrap = seg.el.querySelector('.seg-wave');
+  const cvs = wrap.querySelector('canvas');
+  wrap.hidden = false;
+  const dpr = window.devicePixelRatio || 1;
+  const W = cvs.clientWidth || 300, H = 42;
+  cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
+  const g = cvs.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  drawWaveRegion(g, seg.buffer, 0, seg.duration, 0, W, 0, H);
+}
+
+function drawWaveRegion(g, buffer, tStart, tDur, x, w, y, h) {
+  const sr = buffer.sampleRate;
+  const n0 = Math.floor(tStart * sr);
+  const n1 = Math.min(buffer.length, Math.ceil((tStart + tDur) * sr));
+  if (n1 <= n0) return;
+  const ch = buffer.getChannelData(0);
+  const cols = Math.max(1, Math.floor(w));
+  const half = h / 2, midY = y + half;
+  const span = n1 - n0;
+  g.fillStyle = 'rgba(27,23,18,.78)';
+  for (let c = 0; c < cols; c++) {
+    const s = n0 + Math.floor((c / cols) * span);
+    const e = Math.min(n1, s + Math.max(1, Math.floor(span / cols)));
+    let mn = 1, mx = -1;
+    for (let i = s; i < e; i++) { const v = ch[i]; if (v < mn) mn = v; if (v > mx) mx = v; }
+    if (mx < mn) { mn = 0; mx = 0; }
+    const yTop = midY - mx * half;
+    g.fillRect(x + c, yTop, 1, Math.max(1, (mx - mn) * half));
+  }
+}
+
+function drawPending(g, x, w, y, h, showLabel) {
+  g.save();
+  g.beginPath(); g.rect(x, y, w, h); g.clip();
+  g.strokeStyle = 'rgba(27,23,18,.22)'; g.lineWidth = 1;
+  g.beginPath();
+  for (let d = x - h; d < x + w; d += 7) { g.moveTo(d, y + h); g.lineTo(d + h, y); }
+  g.stroke();
+  g.restore();
+  if (showLabel) {
+    g.fillStyle = 'rgba(27,23,18,.55)';
+    g.font = '500 9px "IBM Plex Mono", monospace';
+    g.textAlign = 'center';
+    g.fillText('CHƯA TỔNG HỢP', x + w / 2, y + h / 2 + 3);
+  }
+}
+
+/* =========================================================
+   BƯỚC 03 — BẢN GHÉP
+   ========================================================= */
+const tlMetrics = { padL: 12, innerW: 0, total: 0 };
+
+function computeLayout() {
+  const g = gapMs / 1000;
+  let t = 0;
+  const items = segments.filter(s => s.text.trim()).map(s => {
+    const real = !!(s.buffer && !s.stale);
+    const dur = real ? s.duration : (s.duration || 2.5);
+    const it = { seg: s, start: t, dur, real };
+    t += dur + g;
+    return it;
+  });
+  return { items, total: items.length ? t - g : 0, gap: g };
+}
+
+function invalidateMix() { mixBuffer = null; updateMixUI(); }
+function updateMixUI() {
+  const { items, total } = computeLayout();
+  $('#mixStats').textContent = items.length + ' đoạn · ' + fmtDur(total);
+  drawTimeline();
+}
+
+function drawTimeline() {
+  const cvs = $('#mixCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const W = cvs.clientWidth || 600, H = 118;
+  if (cvs.width !== Math.round(W * dpr) || cvs.height !== Math.round(H * dpr)) {
+    cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
+  }
+  const g = cvs.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+
+  const { items, total, gap } = computeLayout();
+  const padL = 12, padR = 12, padT = 16, padB = 18;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  tlMetrics.padL = padL; tlMetrics.innerW = innerW; tlMetrics.total = total;
+
+  if (!total) {
+    g.fillStyle = 'rgba(27,23,18,.45)';
+    g.font = '500 10.5px "IBM Plex Mono", monospace';
+    g.textAlign = 'center';
+    g.fillText('THÊM ĐOẠN Ở BƯỚC 02 — DẢI SÓNG CỦA BẢN GHÉP SẼ HIỆN Ở ĐÂY', W / 2, H / 2 + 4);
+    return;
+  }
+
+  const y0 = padT + innerH + 5;
+  g.strokeStyle = 'rgba(27,23,18,.4)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(padL, y0); g.lineTo(W - padR, y0); g.stroke();
+  const steps = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300];
+  const step = steps.find(s => (s / total) * innerW >= 60) || 300;
+  g.fillStyle = 'rgba(27,23,18,.55)';
+  g.font = '500 9px "IBM Plex Mono", monospace';
+  g.textAlign = 'center';
+  for (let t = 0; t <= total + 1e-6; t += step) {
+    const x = padL + (t / total) * innerW;
+    g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y0 - 4); g.stroke();
+    const lbl = t >= 60 ? Math.round(t / 60) + 'm' : String(Math.round(t * 10) / 10).replace('.', ',') + 's';
+    g.fillText(lbl, x, y0 + 11);
+  }
+
+  const gapPx = (gap / total) * innerW;
+  items.forEach((it, i) => {
+    const x0 = padL + (it.start / total) * innerW;
+    const w = Math.max(2, (it.dur / total) * innerW);
+    if (mixBuffer && it.real) drawWaveRegion(g, mixBuffer, it.start, it.dur, x0, w, padT, innerH);
+    else if (it.seg.buffer && !it.seg.stale) drawWaveRegion(g, it.seg.buffer, 0, it.dur, x0, w, padT, innerH);
+    else drawPending(g, x0, w, padT, innerH, w > 74);
+
+    if (i > 0) {
+      const midX = x0 - gapPx / 2;
+      g.setLineDash([3, 4]);
+      g.strokeStyle = 'rgba(27,23,18,.45)';
+      g.beginPath(); g.moveTo(midX, padT + 2); g.lineTo(midX, y0 - 3); g.stroke();
+      g.setLineDash([]);
+      if (gapPx >= 14) {
+        const midY = padT + innerH / 2;
+        g.strokeStyle = 'rgba(27,23,18,.25)';
+        g.beginPath();
+        for (let gx = midX - gapPx / 2 + 3; gx < midX + gapPx / 2; gx += 5) {
+          g.moveTo(gx, midY - 6); g.lineTo(gx, midY + 6);
+        }
+        g.stroke();
+      }
+    }
+  });
+
+  const px = padL + Math.min(playheadPos / total, 1) * innerW;
+  g.strokeStyle = ACC; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(px, padT - 6); g.lineTo(px, y0 - 2); g.stroke();
+  g.fillStyle = ACC;
+  g.beginPath(); g.moveTo(px - 5, padT - 12); g.lineTo(px + 5, padT - 12); g.lineTo(px, padT - 4); g.closePath(); g.fill();
+}
+
+/* ---------- Tổng hợp các đoạn còn thiếu ---------- */
+async function ensureSynthAll() {
+  const todo = segments.filter(s => s.text.trim() && (!s.buffer || s.stale));
+  if (!todo.length) return;
+  let done = 0;
+  for (const s of todo) {
+    $('#mixProgress').textContent = 'đang tổng hợp ' + (++done) + '/' + todo.length + '…';
+    await synthSeg(s);
+  }
+  $('#mixProgress').textContent = '';
+  mixBuffer = null;
+}
+
+function buildMixBuffer() {
+  const { items, total } = computeLayout();
+  if (!items.length || total <= 0) return null;
+  const sr = audioCtx.sampleRate;
+  const len = Math.max(1, Math.ceil(total * sr));
+  const out = audioCtx.createBuffer(2, len, sr);
+  const L = out.getChannelData(0), R = out.getChannelData(1);
+  for (const it of items) {
+    const b = it.seg.buffer;
+    if (!b) continue;
+    const off = Math.round(it.start * sr);
+    const n = Math.min(b.length, len - off);
+    const c0 = b.getChannelData(0);
+    const c1 = b.numberOfChannels > 1 ? b.getChannelData(1) : c0;
+    for (let i = 0; i < n; i++) { L[off + i] = c0[i]; R[off + i] = c1[i]; }
+  }
+  return out;
+}
+
+/* ---------- Phát / dừng bản ghép ---------- */
+function endMix() {
+  if (!playState) return;
+  if (playState.raf) cancelAnimationFrame(playState.raf);
+  playState = null;
+  updatePlayBtn();
+  spinInc(-1);
+}
+function stopMixPlayback() {
+  if (!playState) return;
+  const s = playState.src;
+  endMix();
+  try { s.stop(); } catch (e) {}
+}
+function updatePlayBtn() {
+  const b = $('#btnPlayMix');
+  b.innerHTML = playState
+    ? IC.stop + '<span>Tạm dừng</span>'
+    : IC.play + '<span>Phát bản ghép</span>';
+}
+function rafLoop() {
+  if (!playState || !mixBuffer) return;
+  const total = mixBuffer.duration;
+  playheadPos = Math.min(playState.offset + (audioCtx.currentTime - playState.startedAt), total);
+  drawTimeline();
+  if (playheadPos >= total - 0.02) { playheadPos = 0; endMix(); drawTimeline(); return; }
+  playState.raf = requestAnimationFrame(rafLoop);
+}
+
+async function playMix(fromPos) {
+  if (mixBusy) return;
+  stopPreview();
+  stopMixPlayback();
+  const active = segments.filter(s => s.text.trim());
+  if (!active.length) { toast('Chưa có đoạn nào có nội dung để phát.', 'error'); return; }
+  setMixBusy(true);
+  try {
+    await ensureSynthAll();
+    if (!mixBuffer) mixBuffer = buildMixBuffer();
+    if (!mixBuffer) return;
+    await audioCtx.resume();
+    const total = mixBuffer.duration;
+    let offset = (fromPos == null ? playheadPos : fromPos);
+    if (!(offset >= 0) || offset >= total - 0.05) offset = 0;
+    const src = audioCtx.createBufferSource();
+    src.buffer = mixBuffer;
+    src.connect(audioCtx.destination);
+    src.start(0, offset);
+    playState = { src, startedAt: audioCtx.currentTime, offset, raf: 0 };
+    spinInc(1);
+    src.onended = () => {
+      if (playState && playState.src === src) { playheadPos = 0; endMix(); drawTimeline(); }
+    };
+    updatePlayBtn();
+    playState.raf = requestAnimationFrame(rafLoop);
+  } catch (e) {
+    $('#mixProgress').textContent = '';
+  } finally {
+    setMixBusy(false);
+  }
+}
+
+function setMixBusy(b) {
+  mixBusy = b;
+  $('#btnPlayMix').disabled = b;
+  $('#btnDownload').disabled = b;
+}
+
+/* ---------- Xuất WAV 16-bit PCM ---------- */
+function encodeWAV(buffer) {
+  const sr = buffer.sampleRate, n = buffer.length;
+  const bytes = 44 + n * 4;
+  const ab = new ArrayBuffer(bytes);
+  const dv = new DataView(ab);
+  const wstr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  wstr(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); wstr(8, 'WAVE');
+  wstr(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 2, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 4, true); dv.setUint16(32, 4, true); dv.setUint16(34, 16, true);
+  wstr(36, 'data'); dv.setUint32(40, n * 4, true);
+  const L = buffer.getChannelData(0), R = buffer.getChannelData(1);
+  const cl = v => v < -1 ? -32768 : v > 1 ? 32767 : Math.round(v * 32767);
+  let o = 44;
+  for (let i = 0; i < n; i++) {
+    dv.setInt16(o, cl(L[i]), true); o += 2;
+    dv.setInt16(o, cl(R[i]), true); o += 2;
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+async function downloadMix() {
+  if (mixBusy) return;
+  const active = segments.filter(s => s.text.trim());
+  if (!active.length) { toast('Chưa có đoạn nào có nội dung để xuất.', 'error'); return; }
+  stopMixPlayback();
+  setMixBusy(true);
+  try {
+    await ensureSynthAll();
+    mixBuffer = buildMixBuffer();
+    if (!mixBuffer) { toast('Không dựng được bản ghép.', 'error'); return; }
+    const blob = encodeWAV(mixBuffer);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ghep-giong-' + Date.now() + '.wav';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 6000);
+    toast('Đã xuất WAV ' + (audioCtx.sampleRate / 1000).toFixed(1).replace('.', ',') + ' kHz · ' +
+      fmtDur(mixBuffer.duration) + ' · ' + (blob.size / 1048576).toFixed(1).replace('.', ',') + ' MB', 'ok');
+  } catch (e) {
+    $('#mixProgress').textContent = '';
+  } finally {
+    setMixBusy(false);
+  }
+}
+
+/* =========================================================
+   GẮN SỰ KIỆN & KHỞI TẠO
+   ========================================================= */
+ $('#btnValidate').addEventListener('click', onValidate);
+ $('#apiKey').addEventListener('keydown', e => { if (e.key === 'Enter') onValidate(); });
+ $('#btnEye').addEventListener('click', () => {
+  const inp = $('#apiKey');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  $('#eyeIcon').innerHTML = show
+    ? '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+    : '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>';
+});
+
+ $('#btnAddSeg').addEventListener('click', () => addSegment(true));
+ $('#gapRange').addEventListener('input', e => {
+  gapMs = +e.target.value;
+  $('#gapVal').textContent = gapMs + ' ms';
+  invalidateMix();
+});
+ $('#btnPlayMix').addEventListener('click', () => playState ? stopMixPlayback() : playMix());
+ $('#btnDownload').addEventListener('click', downloadMix);
+
+ $('#mixCanvas').addEventListener('click', e => {
+  const { total, padL, innerW } = tlMetrics;
+  if (!total) return;
+  const r = $('#mixCanvas').getBoundingClientRect();
+  let f = (e.clientX - r.left - padL) / innerW;
+  f = Math.max(0, Math.min(1, f));
+  const pos = f * total;
+  playheadPos = pos;
+  drawTimeline();
+  playMix(pos);
+});
+
+window.addEventListener('resize', () => {
+  drawTimeline();
+  segments.forEach(drawSegWave);
+});
+
+drawTimeline();
+renderQuota();
+</script>
+</body>
+</html>
